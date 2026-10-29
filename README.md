@@ -13,7 +13,7 @@ A small command-line teaching project that demonstrates guardrails for an employ
 - Custom business rules
 - Output rules
 - Pydantic validation
-- Optional NeMo Guardrails input/output self-checks
+- Optional NeMo Guardrails rails: LLM self-checks, jailbreak heuristics, sensitive-data masking, fact checking
 
 > **Important:** The Python keyword checks are deliberately simple teaching examples. They are not production-grade security controls. In production, use evaluated detection, proper authentication/authorization, and enforce data permissions in the trusted application/data layer.
 
@@ -94,7 +94,35 @@ export USE_NEMO="true"
 python app.py
 ```
 
-The NeMo configuration is loaded from `./config`. It enables `self check input` and `self check output`; their policy prompts are in `config/prompts.yml`.
+The NeMo configuration is loaded from `./config`, so run `app.py` from the project folder. Policy prompts are in `config/prompts.yml`.
+
+| Rail | Stage | What it does |
+|---|---|---|
+| `self check input` | input | An LLM call decides whether to block the question |
+| `jailbreak detection heuristics` | input | Flags prompts with unusual perplexity, using GPT-2 Large locally |
+| `mask sensitive data on input` | input | Replaces names, emails, phone numbers, SSNs and card numbers in the question |
+| `self check output` | output | An LLM call decides whether to block the answer |
+| `self check facts` | output | Checks the answer against retrieved evidence |
+| `mask sensitive data on output` | output | Masks the same entities in the answer |
+| `mask sensitive data on retrieval` | retrieval | Masks the same entities in retrieved chunks |
+
+`self check facts` and the retrieval rail act only on retrieved documents. This demo has no knowledge base, so they pass every answer; they show where the checks go once RAG is added.
+
+### Extra packages for NeMo mode
+
+`requirements.txt` installs NeMo itself. Two rails need more:
+
+```bash
+# Sensitive-data masking (Presidio + spaCy)
+pip install "nemoguardrails[sdd]"
+python -m spacy download en_core_web_lg
+
+# Jailbreak heuristics run in-process: needs PyTorch and Transformers,
+# and downloads GPT-2 Large (about 3 GB) on first use
+pip install torch transformers
+```
+
+Without them, the first question fails with an import error. For production, run NeMo's jailbreak detection server and set `server_endpoint` under `jailbreak_detection` instead of running the model in-process.
 
 This mode makes additional model calls for self-checking, so provider charges and extra latency may apply. It does not create an API server.
 
@@ -102,6 +130,7 @@ This mode makes additional model calls for self-checking, so provider charges an
 
 - `LLMRails` is the NeMo runtime that applies the configured rails.
 - `RailsConfig.from_path("./config")` loads the YAML configuration and prompts from the folder.
+- `app.py` imports only `LLMRails` and `RailsConfig`, and only when `USE_NEMO=true`. The rails named in `config.yml` are NeMo built-ins loaded by name, so they need no import of their own.
 - Python functions run separately from NeMo flows in this example.
 - `IntentResult` and `BotResponse` are Pydantic models that validate structure and allowed values.
 - The example has no company database or RAG. It must not be used to answer real employee-specific questions.

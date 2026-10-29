@@ -7,8 +7,49 @@ models:
 
 rails:
   input:
+    parallel: false
     flows:
       - self check input
+      - jailbreak detection heuristics
+      - mask sensitive data on input
+
   output:
+    parallel: false
     flows:
       - self check output
+      - self check facts
+      - mask sensitive data on output
+
+  retrieval:
+    flows:
+      - mask sensitive data on retrieval
+
+  config:
+    jailbreak_detection:
+      length_per_perplexity_threshold: 89.79
+      prefix_suffix_perplexity_threshold: 1845.65
+
+    # The masking rails do nothing unless entities are listed here.
+    # Names are Presidio entity types: https://microsoft.github.io/presidio/supported_entities/
+    sensitive_data_detection:
+      input:
+        entities:
+          - PERSON
+          - EMAIL_ADDRESS
+          - PHONE_NUMBER
+          - US_SSN
+          - CREDIT_CARD
+      output:
+        entities:
+          - PERSON
+          - EMAIL_ADDRESS
+          - PHONE_NUMBER
+          - US_SSN
+          - CREDIT_CARD
+      retrieval:
+        entities:
+          - PERSON
+          - EMAIL_ADDRESS
+          - PHONE_NUMBER
+          - US_SSN
+          - CREDIT_CARD
