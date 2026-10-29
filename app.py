@@ -186,13 +186,8 @@ def generate_answer(question: str, intent: Intent) -> str:
 
 def chatbot(question: str) -> BotResponse:
     """Apply input checks, route intent, generate/check answer, validate result."""
-    if not topic_guard(question):
-        return BotResponse(
-            answer="I can help with employee benefits, medical coverage, and equity compensation.",
-            status="blocked",
-            intent=Intent.OUT_OF_SCOPE,
-        )
-
+    # Security checks run before the topic guard, so an attack that is also
+    # off-topic is reported by the guard that actually caught it.
     if not jailbreak_shield(question):
         return BotResponse(
             answer="I can't follow requests to override my instructions.",
@@ -210,6 +205,13 @@ def chatbot(question: str) -> BotResponse:
     if not custom_business_rules(question):
         return BotResponse(
             answer="I can't disclose another employee's confidential information.",
+            status="blocked",
+            intent=Intent.OUT_OF_SCOPE,
+        )
+
+    if not topic_guard(question):
+        return BotResponse(
+            answer="I can help with employee benefits, medical coverage, and equity compensation.",
             status="blocked",
             intent=Intent.OUT_OF_SCOPE,
         )
@@ -252,7 +254,8 @@ def chatbot(question: str) -> BotResponse:
             intent=intent_result.intent,
         )
 
-    return BotResponse(answer=answer, status="ok", intent=intent_result.intent)
+    status = "clarify" if intent_result.intent == Intent.UNCLEAR else "ok"
+    return BotResponse(answer=answer, status=status, intent=intent_result.intent)
 
 
 def main() -> None:
